@@ -1,0 +1,246 @@
+import React from 'react'
+import { ContextUserAuth } from '../../../layout/layoutContextDasboard';
+import { Card } from 'primereact/card'
+import { DataTable } from 'primereact/datatable';
+import { Column } from 'primereact/column';
+import { Button } from 'primereact/button'
+import { Tag } from 'primereact/tag'
+import { InputText } from 'primereact/inputtext'
+import { configData } from '../../../config';
+import { Toast } from 'primereact/toast'
+import useSWR from 'swr';
+import { swrFetch } from '@/fetch/swr.fetch';
+import Head from 'next/head'
+const url_backend = configData.API_BACKEND;
+
+export default function PageDasboard() {
+    const user = React.useContext(ContextUserAuth);
+
+    const titleSettingPakanIkan = <h5 className='text-600'>Setting Pakan Ikan</h5>
+    const titleInfoDataPakanIka = <h5 className='text-600'>Info Data Pakan Ikan</h5>
+    const [disable, setDisable] = React.useState<boolean>(false);
+    const refToast = React.useRef<Toast>(null);
+
+    const optionSwrInit: RequestInit = {
+        method: "GET",
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${user?.token}`
+        }
+    }
+
+    const { isLoading, isValidating, data, error, mutate } = useSWR({
+        url: 'protected/get-setting',
+        option: optionSwrInit
+    }, swrFetch);
+
+    const dataTables = useSWR({
+        url: 'protected/data-pkn-all',
+        option: optionSwrInit
+    }, swrFetch);
+
+
+    const refreshDataTables = async () => {
+        await dataTables.mutate();
+        refToast.current?.show({
+            severity: 'success',
+            summary: "Refresh Table ",
+            detail: "Data Table Pakan Ikan diperbarui..."
+        })
+    }
+
+    const HeaderTable = () => {
+        return (
+            <React.Fragment>
+                <div className=" flex flex-wrap align-items-center justify-content-between gap-2">
+                    <span className="text-xl text-600 font-bold">Table Data</span>
+                    <Button onClick={refreshDataTables} icon="pi pi-refresh" rounded raised />
+                </div>
+            </React.Fragment>
+        )
+    }
+
+    const optionTextTable = {
+        alignHeader: "center" as any,
+        className: "text-center"
+    }
+
+
+    const handleDeleteData = async (id: string) => {
+        const fetchDelete = await fetch(`${url_backend}/protected/delete/${id}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${user?.token}`
+            }
+        });
+
+        if (fetchDelete.ok) {
+            refToast.current?.show({
+                severity: 'success',
+                summary: 'Delete Data Table',
+                detail: "Data Table Pakan Ikan berhasil di hapus"
+            });
+            await dataTables.mutate();
+            return;
+        }
+        refToast.current?.show({
+            severity: 'error',
+            summary: 'Delete Data Table',
+            detail: "Error Delete pakan Ikan"
+        });
+    }
+
+    const tableHeaderOptions = (body: any) => {
+        return (
+            <div className="flex gap-2 justify-content-center">
+                <Button severity='danger' onClick={async () => handleDeleteData(body?.id)} size='small' icon={'pi pi-trash'} rounded />
+            </div>
+        )
+    }
+
+    const TagsStatusBody = (data: any) => {
+        return (
+            <Tag severity={data?.status ? "success" : "danger"}>
+                {data?.status ? "True" : "False"}
+            </Tag>
+        )
+    }
+
+    const onSubmitSettingPakan = async (ev: React.FormEvent<HTMLFormElement>) => {
+        ev.preventDefault();
+        setDisable(true)
+        const formData = new FormData(ev.target as HTMLFormElement);
+        const dataForm = Object.fromEntries(formData.entries());
+        const body = {
+            ...dataForm,
+            idDoc: 'dsuCXNomWec657gKORFR'
+        }
+
+        const fetchSettingPakan = await fetch(`${url_backend}/protected/setting-pakan`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': "application/json",
+                'Authorization': `Bearer ${user?.token}`
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (fetchSettingPakan.ok) {
+            const resSuccess = await fetchSettingPakan.json();
+            setDisable(false)
+            refToast.current?.show({
+                severity: "success",
+                summary: "Update Pakan Ikan",
+                detail: `${resSuccess?.message}`
+            });
+            await mutate();
+        }
+    }
+
+    const bodyTableCreatedAt = (body: any) => {
+        const dated = new Date(parseInt(body?.created_at));
+        return dated.toUTCString();
+    }
+
+    return (
+        <React.Fragment>
+            <Toast ref={refToast} />
+            <Head>
+                <title>Dasboard Pakan Ikan</title>
+                <meta name="description" content="Generated by create next app" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <link rel="icon" href="/favicon.ico" />
+            </Head>
+            <div className="grid p-fluid justify-content-center p-5">
+                <div className="col-12">
+                    <h2 className='pb-3 text-600'>Monitoring Aplikasi Pakan Ikan</h2>
+                    <div className="grid">
+                        <div className="col-12 md:col-3">
+                            <div className="grid p-fluid">
+                                <div className="col-12">
+                                    <Card className='text-700 border-0' title={titleInfoDataPakanIka}>
+                                        <div className="grid p-fluid">
+                                            <div className="col-12">
+                                                <div className="flex gap-2">
+                                                    <span className='text-center'>Pakan Awal</span>
+                                                    <InputText disabled className='p-inputtext-sm' value={data?.pakan_awal} id="username" type='text' aria-describedby="username-help" />
+                                                </div>
+                                            </div>
+                                            <div className="col-12">
+                                                <div className="flex gap-2">
+                                                    <span className='text-center'>Pakan Akhir</span>
+                                                    <InputText disabled className='p-inputtext-sm' value={data?.pakan_akhir} id="username" type='text' aria-describedby="username-help" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </div>
+                                <div className="col-12">
+                                    <Card className='text-700 border-0' title={titleSettingPakanIkan}>
+                                        <form onSubmit={onSubmitSettingPakan}>
+                                            <div className="grid p-fluid">
+                                                <div className="col-12">
+                                                    <div className="flex flex-column gap-2">
+                                                        <label htmlFor="username">Set Pakan Awal</label>
+                                                        <InputText
+                                                            name='pakan_awal'
+                                                            className='p-inputtext-sm'
+                                                            id="pakan_awal"
+                                                            type='time'
+                                                            aria-describedby="username-help" />
+                                                    </div>
+                                                </div>
+                                                <div className="col-12">
+                                                    <div className="flex flex-column gap-2">
+                                                        <label htmlFor="username">Set Pakan Akhir</label>
+                                                        <InputText
+                                                            name='pakan_akhir'
+                                                            className='p-inputtext-sm'
+                                                            id="pakan_akhir"
+                                                            type='time'
+                                                            aria-describedby="username-help" />
+                                                    </div>
+                                                </div>
+                                                <div className="col-12">
+                                                    <Button
+                                                        disabled={disable}
+                                                        type='submit'
+                                                        severity='success'
+                                                        size='small'
+                                                        label='Submit'
+                                                        icon={"pi pi-sign-in"} />
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </Card>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="col-12 md:col-9">
+                            <Card className='text-700 border-0' title={titleInfoDataPakanIka}>
+                                <DataTable
+                                    value={dataTables?.data}
+                                    header={HeaderTable}
+                                    paginator
+                                    rows={5}
+                                    rowsPerPageOptions={[5, 10, 25, 50]}>
+                                    <Column sortable field='id' {...optionTextTable} header={"ID"} />
+                                    <Column sortable field='device'  {...optionTextTable} header={"Device"} />
+                                    <Column sortable field='status'  {...optionTextTable} body={TagsStatusBody} header={"Status"} />
+                                    <Column sortable field='message' {...optionTextTable} header={"Message"} />
+                                    <Column sortable field='created_at' {...optionTextTable} body={bodyTableCreatedAt} header={"Create At"} />
+                                    <Column sortable {...optionTextTable} body={tableHeaderOptions} header={"Option"} />
+                                </DataTable>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </React.Fragment>
+    )
+}
+
+PageDasboard.getLayoutDasboard = function (page: React.ReactNode) {
+    return page;
+}
